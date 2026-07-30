@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NLP Mətn Analizatoru</title>
+<style>
+  :root {
+    --primary: #4C72B0;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #222;
+    --muted: #666;
+    --border: #e2e6ea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 0 0 60px 0;
+  }
+  header {
+    background: var(--primary);
+    color: white;
+    padding: 28px 20px;
+    text-align: center;
+  }
+  header h1 { margin: 0 0 6px 0; font-size: 1.6rem; }
+  header p { margin: 0; opacity: 0.9; font-size: 0.95rem; }
+
+  .container {
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 0 20px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  textarea {
+    width: 100%;
+    min-height: 160px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 1rem;
+    font-family: inherit;
+    resize: vertical;
+  }
+  .btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 12px 22px;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 12px;
+  }
+  .btn:hover { opacity: 0.9; }
+  .btn-secondary {
+    background: transparent;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    margin-left: 8px;
+  }
+  .error {
+    background: #fdecea;
+    color: #b3261e;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+  h2 { font-size: 1.15rem; margin-top: 0; }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+    margin-bottom: 10px;
+  }
+  .stat-box {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-box .num { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+  .stat-box .label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
+  th { color: var(--muted); font-weight: 600; }
+
+  .tag-list span, .entity-list span {
+    display: inline-block;
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 4px 10px;
+    margin: 3px;
+    font-size: 0.85rem;
+  }
+  .entity-list span.PERSON { background: #e8f0fe; }
+  .entity-list span.GPE, .entity-list span.LOCATION { background: #e6f4ea; }
+  .entity-list span.ORGANIZATION { background: #fff4e5; }
+
+  .sentiment-badge {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 1rem;
+  }
+  .sentiment-pos { background: #e6f4ea; color: #1e7e34; }
+  .sentiment-neg { background: #fdecea; color: #b3261e; }
+  .sentiment-neu { background: #eef0f2; color: #555; }
+
+  img.result-img {
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-top: 10px;
+  }
+  .muted { color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧠 NLP Mətn Analizatoru</h1>
+  <p>Computational Linguistics &amp; NLP — kiçik veb layihə</p>
+</header>
+
+<div class="container">
+
+  <div class="card">
+    <h2>Mətninizi daxil edin</h2>
+    <form method="POST">
+      <textarea name="text" id="text-input" placeholder="Analiz olunacaq İngilis dilində mətni bura yazın...">{{ text }}</textarea>
+      <br>
+      <button type="submit" class="btn">Analiz et</button>
+      <button type="button" class="btn btn-secondary" id="example-btn">Nümunə mətn</button>
+    </form>
+    {% if error %}
+      <p class="error" style="margin-top:16px;">{{ error }}</p>
+    {% endif %}
+    <p class="muted" style="margin-top:10px;">
+      Qeyd: modellər İngilis dili üçün öyrədilib, ən yaxşı nəticə üçün İngiliscə mətn yazın.
+    </p>
+    <script>
+      const exampleText = {{ example_text|tojson }};
+      document.getElementById('example-btn').addEventListener('click', function () {
+        document.getElementById('text-input').value = exampleText;
+      });
+    </script>
+  </div>
+
+  {% if result %}
+  <div class="card">
+    <h2>Ümumi statistika</h2>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="num">{{ result.char_count }}</div><div class="label">Simvol</div></div>
+      <div class="stat-box"><div class="num">{{ result.sentence_count }}</div><div class="label">Cümlə</div></div>
+      <div class="stat-box"><div class="num">{{ result.word_count }}</div><div class="label">Söz (token)</div></div>
+      <div class="stat-box"><div class="num">{{ result.cleaned_word_count }}</div><div class="label">Stopword-dən sonra</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>😊 Hiss analizi (Sentiment)</h2>
+    {% set s = result.sentiment_scores %}
+    {% if 'Müsbət' in result.sentiment_label %}
+      <span class="sentiment-badge sentiment-pos">{{ result.sentiment_label }}</span>
+    {% elif 'Mənfi' in result.sentiment_label %}
+      <span class="sentiment-badge sentiment-neg">{{ result.sentiment_label }}</span>
+    {% else %}
+      <span class="sentiment-badge sentiment-neu">{{ result.sentiment_label }}</span>
+    {% endif %}
+    <table>
+      <tr><th>Müsbət</th><th>Mənfi</th><th>Neytral</th><th>Ümumi bal</th></tr>
+      <tr><td>{{ "%.2f"|format(s.pos) }}</td><td>{{ "%.2f"|format(s.neg) }}</td><td>{{ "%.2f"|format(s.neu) }}</td><td>{{ "%.2f"|format(s.compound) }}</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>📊 Söz tezliyi</h2>
+    {% if result.freq_chart_b64 %}
+      <img class="result-img" src="data:image/png;base64,{{ result.freq_chart_b64 }}" alt="Söz tezliyi qrafiki">
+    {% else %}
+      <p class="muted">Qrafik yaratmaq üçün kifayət qədər söz yoxdur.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>☁️ Word Cloud</h2>
+    {% if result.wordcloud_b64 %}
+      <img class="result-img" src="data:image/png;base64,{{ result.wordcloud_b64 }}" alt="Word Cloud">
+    {% else %}
+      <p class="muted">Word cloud yaratmaq üçün kifayət qədər söz yoxdur.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>🏷️ Nitq hissələri (POS Tagging) — ilk 20 söz</h2>
+    <div class="tag-list">
+      {% for word, tag in result.pos_tags %}
+        <span><b>{{ word }}</b> · {{ tag }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🏢 Xüsusi adlar (Named Entities)</h2>
+    {% if result.entities %}
+      <div class="entity-list">
+        {% for name, label in result.entities %}
+          <span class="{{ label }}"><b>{{ name }}</b> · {{ label }}</span>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">Mətndə xüsusi ad (şəxs, yer, təşkilat) tapılmadı.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>🔤 Ən çox işlənən sözlər</h2>
+    <table>
+      <tr><th>Söz</th><th>Tezlik</th></tr>
+      {% for word, count in result.top_words %}
+        <tr><td>{{ word }}</td><td>{{ count }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>
