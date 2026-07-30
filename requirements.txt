@@ -2,3 +2,4 @@ nltk
 wordcloud
 matplotlib
 flask
+gunicorn
